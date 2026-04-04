@@ -31,7 +31,7 @@ Zenodo CSV → GCS (bronze) → PySpark → GCS (silver)
 → BigQuery (raw) → dbt (stg → int → mart) → Looker Studio
 ```
 
-![Architecture Diagram](data/architecture.svg)
+![Architecture Diagram](images/architecture.svg)
 
 ---
 
