@@ -1,60 +1,117 @@
 # HCM Air Quality Analytics Pipeline
 
-> An end-to-end batch data pipeline that ingests four years of hourly
-> air quality data for Ho Chi Minh City, processes it through a
-> cost-optimized BigQuery warehouse, and surfaces pollution trends
-> via a Looker Studio dashboard.
+> An end-to-end batch data pipeline that ingests four years of air quality data
+> for Ho Chi Minh City, transforms it through a medallion architecture on GCS and
+> BigQuery, and surfaces pollution trends via a Looker Studio dashboard.
 
 ---
 
 ## Problem Statement
 
-Ho Chi Minh City consistently ranks among Southeast Asia's most
-polluted cities, with AQI levels frequently exceeding WHO safe
-thresholds due to dense traffic, industrial activity, and seasonal
-weather patterns. Despite the availability of historical air quality
-data, there is no accessible tool that surfaces multi-year pollution
-trends and category distributions for public awareness.
+Ho Chi Minh City consistently ranks among Southeast Asia's most polluted cities,
+with AQI levels frequently exceeding WHO safe thresholds due to dense traffic,
+industrial activity, and seasonal weather patterns. Despite the availability of
+historical air quality data, there is no accessible tool that surfaces multi-year
+pollution trends and category distributions for public awareness.
 
-This pipeline processes hourly AQI and pollutant measurements
-(PM2.5, PM10, CO, NO₂, SO₂, O₃) from 2022 to 2026, enabling
-data-driven answers to questions like: _When does air quality
-deteriorate most? Which pollutant categories dominate? Are conditions
-improving year over year?_
+This pipeline processes daily historical measurements (2022–2026) combined with
+live hourly API data, enabling data-driven answers to questions like: _When does
+air quality deteriorate most? Which pollutants dominate? Are conditions improving
+year over year?_
 
 ---
 
 ## Architecture
 
 ```
-Zenodo CSV → GCS (bronze) → PySpark → GCS (silver)
-→ BigQuery (raw) → dbt (stg → int → mart) → Looker Studio
+Open-Meteo API  ──► Kestra ──► GCS bronze/hourly/YYYY-MM-DD/HH/
+Zenodo CSV      ──► Kestra ──► GCS bronze/historical/
+                                        │
+                                     PySpark
+                                        │
+                         GCS silver/hourly/  +  silver/historical/
+                                        │
+                                    BigQuery
+                                        │
+                              dbt (stg → int_daily → mart_aqi)
+                                        │
+                               Looker Studio dashboard
 ```
-
-![Architecture Diagram](images/architecture.svg)
+![Architecture Diagram](images/new_architecture.svg)
+> Infrastructure (GCS bucket + BigQuery dataset) is provisioned by Terraform.
+> Kestra runs locally via Docker Compose.
+> PySpark runs locally; development done in Jupyter notebooks under `notebooks/`.
 
 ---
 
 ## Tech Stack
 
-| Layer          | Tool                               |
-| -------------- | ---------------------------------- |
-| Infrastructure | Terraform + GCP                    |
-| Orchestration  | Kestra                             |
-| Processing     | PySpark (Docker)                   |
-| Data Lake      | Google Cloud Storage               |
-| Data Warehouse | BigQuery (partitioned + clustered) |
-| Transformation | dbt                                |
-| Dashboard      | Looker Studio                      |
+| Layer          | Tool                                      |
+| -------------- | ----------------------------------------- |
+| Infrastructure | Terraform + GCP                           |
+| Orchestration  | Kestra (Docker Compose)                   |
+| Processing     | PySpark                                   |
+| Data Lake      | Google Cloud Storage (medallion: bronze/silver) |
+| Data Warehouse | BigQuery (partitioned + clustered)        |
+| Transformation | dbt                                       |
+| Dashboard      | Looker Studio                             |
 
 ---
 
-## Dataset
+## Why this stack?
 
-- **Source:** [Zenodo — Air Quality Dataset for Ho Chi Minh City (2022–2026)](https://zenodo.org/records/18673714)
+PySpark is used for the bronze→silver transformation to demonstrate batch
+processing skills. For this data volume (≈1,300 rows historical + hourly
+increments), BigQuery SQL alone would be sufficient in production. The stack
+reflects DE Zoomcamp curriculum coverage and a realistic junior DE portfolio.
+
+---
+
+## Data Sources
+
+### Historical (one-time backfill)
+- **Source:** [Zenodo — Air Quality Dataset for Ho Chi Minh City](https://zenodo.org/records/18673714)
 - **Author:** Nitiraj Kulkarni
-- **Coverage:** 2022-08-01 to 2026-02-18, hourly resolution
-- **Key fields:** `datetime`, `aqi`, `pm2_5`, `pm10`, `co`, `no2`, `so2`, `o3`
+- **Coverage:** 2022-08-01 to 2026-02-18, daily averages
+- **Columns:** `date, pm10, pm2_5, carbon_monoxide, nitrogen_dioxide, sulphur_dioxide, ozone, aerosol_optical_depth, dust, uv_index, us_aqi, european_aqi`
+- **Note:** Raw date format is `DD-MM-YY` — converted to `YYYY-MM-DD` in PySpark
+
+### Live (hourly)
+- **Source:** [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api)
+- **Coordinates:** 10.8231° N, 106.6297° E (Ho Chi Minh City)
+- **Frequency:** Every hour via Kestra scheduler
+- **Auth:** None required (free API)
+
+---
+
+## GCS Structure
+
+```
+hcm-air-quality-486008/
+├── bronze/
+│   ├── hourly/YYYY-MM-DD/HH/air_quality.json    ← raw API response (24 hrs each)
+│   └── historical/air_quality_historical.csv     ← raw Zenodo CSV
+└── silver/
+    ├── hourly/date=YYYY-MM-DD/                   ← cleaned Parquet, partitioned by date
+    └── historical/                               ← cleaned Parquet
+```
+
+---
+
+## Warehouse Design
+
+The BigQuery tables loaded from silver Parquet are:
+
+- **Partitioned by** `date` — eliminates full scans for date-range queries
+- **Clustered by** `us_aqi` — accelerates AQI category filtering
+
+dbt layers:
+
+| Layer | Model | Description |
+| ----- | ----- | ----------- |
+| Staging | `stg_air_quality` | Type casting, column renaming |
+| Intermediate | `int_daily` | Daily aggregates, 7-day rolling averages |
+| Mart | `mart_aqi` | AQI category distribution, final dashboard grain |
 
 ---
 
@@ -69,18 +126,19 @@ _(add Looker Studio public link here)_
 ### Prerequisites
 
 - GCP account with billing enabled
-- Terraform installed
+- Terraform ≥ 1.5 installed
 - Docker + Docker Compose installed
-- Python 3.11+
+- Python 3.11+ with `uv` or `pip`
+- Java 17 (required for PySpark)
 
 ### Step 1 — Clone and configure
 
 ```bash
-git clone https://github.com/yourname/hcm-air-quality-pipeline
+git clone https://github.com/luc-dt/hcm-air-quality-pipeline
 cd hcm-air-quality-pipeline
-cp .env.example .env
-# fill in your GCP project ID and bucket name
 ```
+
+Place your GCP service account key at `keys/hcm-pipeline-sa.json` (gitignored).
 
 ### Step 2 — Provision infrastructure
 
@@ -90,24 +148,48 @@ terraform init
 terraform apply
 ```
 
-### Step 3 — Download dataset
+Creates GCS bucket `hcm-air-quality-486008` and BigQuery dataset `hcm_air_quality`
+in `asia-southeast1`.
 
-Download `air_quality_historical.csv` from [Zenodo](https://zenodo.org/records/18673714)
-and place it in `data/air_quality_historical.csv`.
+### Step 3 — Download historical dataset
+
+Download `air_quality_historical.csv` from
+[Zenodo](https://zenodo.org/records/18673714) and place it at
+`data/air_quality_historical.csv`.
 
 ### Step 4 — Start Kestra
 
 ```bash
 cd kestra
 docker compose up -d
-# open http://localhost:8080
+# UI available at http://localhost:8080
+# login: admin@kestra.io / Admin1234!
 ```
 
-### Step 5 — Run the pipeline
+### Step 5 — Run Kestra flows
 
-Import `kestra/flows/hcm_pipeline.yaml` into Kestra UI and execute.
+In the Kestra UI, execute:
 
-### Step 6 — Run dbt
+1. `hcm.air_quality / historical_backfill` — uploads CSV to `bronze/historical/`
+2. `hcm.air_quality / hourly_air_quality_ingest` — starts hourly data collection
+
+### Step 6 — Run PySpark transforms
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=keys/hcm-pipeline-sa.json
+
+# Historical (one-time)
+jupyter notebook notebooks/transform_historical.ipynb
+
+# Hourly (run for a specific date/hour you have in bronze)
+jupyter notebook notebooks/transform_hourly.ipynb
+```
+
+### Step 7 — Load silver to BigQuery
+
+_(BigQuery external table or load job — to be added)_
+
+### Step 8 — Run dbt
 
 ```bash
 cd dbt
@@ -116,20 +198,30 @@ dbt run
 dbt test
 ```
 
-### Step 7 — View dashboard
+### Step 9 — View dashboard
 
 Open the Looker Studio link above.
 
 ---
 
-## Warehouse Design
+## Repository Structure
 
-`raw_air_quality` in BigQuery is:
-
-- **Partitioned by** `DATE(datetime)` — eliminates full scans
-  for date-range queries
-- **Clustered by** `aqi_category` — accelerates categorical
-  filtering used by dashboard Tile 1
+```
+hcm-air-quality-pipeline/
+├── terraform/              # GCS + BigQuery provisioning
+├── kestra/
+│   ├── docker-compose.yml
+│   └── flows/
+│       ├── hourly_air_quality_ingest.yml
+│       └── historical_backfill.yml
+├── notebooks/              # PySpark development (Jupyter)
+│   ├── transform_historical.ipynb
+│   └── transform_hourly.ipynb
+├── dbt/                    # Transformation models
+├── data/                   # Local raw data (gitignored)
+├── keys/                   # GCP service account key (gitignored)
+└── README.md
+```
 
 ---
 

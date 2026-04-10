@@ -1,0 +1,77 @@
+# Named volumes to persist data across container restarts
+volumes:
+  postgres-data:   # Stores PostgreSQL database files (Kestra metadata, flow definitions, executions)
+    driver: local
+  kestra-data:     # Stores Kestra internal storage (task outputs, logs, and internal files)
+    driver: local
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PostgreSQL — Backend database for Kestra
+  # Stores all Kestra metadata: flows, executions, logs, triggers, etc.
+  # ─────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17
+    volumes:
+      - postgres-data:/var/lib/postgresql/data   # Mount named volume to persist DB data
+    environment:
+      POSTGRES_DB: kestra          # Database name Kestra will connect tor
+
+      POSTGRES_USER: kestra        # DB username (must match Kestra datasource config)
+      POSTGRES_PASSWORD: kestra    # DB password (must match Kestra datasource config)
+    healthcheck:
+      # Waits until PostgreSQL is ready to accept connections before Kestra starts
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 30s    # Check every 30 seconds
+      timeout: 10s     # Fail if no response within 10 seconds
+      retries: 10      # Retry up to 10 times before marking as unhealthy
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Kestra — Workflow orchestration engine (standalone/all-in-one mode)
+  # Runs the Kestra server which includes the UI, API, executor, and scheduler
+  # ─────────────────────────────────────────────────────────────────────────────
+  kestra:
+    image: kestra/kestra:v1.1.0
+    pull_policy: missing
+    user: "root"
+    entrypoint: /bin/bash
+    command:
+      - "-c"
+      - "exec /app/kestra server standalone"
+    volumes:
+      - kestra-data:/app/storage                    # Persist Kestra internal storage (outputs, artifacts)
+      - /var/run/docker.sock:/var/run/docker.sock   # Allow Kestra to spin up Docker containers for tasks
+      - /tmp/kestra-wd:/tmp/kestra-wd               # Shared working directory for task execution
+      - ../keys:/keys:ro                            # Mount GCP service account keys (read-only)
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://postgres:5432/kestra   # Connect to the postgres service on its internal hostname
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: kestra
+        kestra:
+          server:
+            basicAuth:
+              enabled: true                   # Disable basic auth (enable and set credentials for production)
+              username: "admin@kestra.io"      # Default admin username (used only if basicAuth is enabled)
+              password: Admin1234!                 # Default admin password (used only if basicAuth is enabled)
+          repository:
+            type: postgres          # Use PostgreSQL to store flow/execution metadata
+          storage:
+            type: local             # Use local filesystem for internal storage
+            local:
+              basePath: "/app/storage"   # Path inside the container for stored files
+          queue:
+            type: postgres          # Use PostgreSQL as the internal task queue backend
+          tasks:
+            tmpDir:
+              path: /tmp/kestra-wd/tmp   # Temp directory for task file I/O (shared with host via volume)
+          url: http://localhost:8080/    # Base URL used to generate links in notifications and the UI
+    ports:
+      - "8080:8080"   # Kestra Web UI and REST API
+      - "8081:8081"   # Kestra management/metrics endpoint
+    depends_on:
+      postgres:
+        condition: service_healthy   # Only start Kestra once PostgreSQL passes the health check

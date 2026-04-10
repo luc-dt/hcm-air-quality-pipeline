@@ -1,0 +1,60 @@
+id: hourly_air_quality_ingest
+namespace: hcm_pipeline
+
+# --- Plugin configurations for BigQuery and GCS ---
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{kv('GCP_CREDS')}}"
+      projectId: "de-zoomcamp-2026-486008"
+
+# --- List of logic steps (tasks) in the pipeline ---
+tasks:
+  # [EXTRACT & TRANSFORM] Fetch hourly air quality metrics from Open-Meteo API
+  - id: extract_and_transform
+    type: io.kestra.plugin.scripts.python.Script
+    containerImage: python:3.11-alpine
+    outputFiles:
+      - "*.json"
+    script: |
+      # Python script to extract and format JSON data
+      import json
+      import urllib.request
+      from datetime import datetime, timezone
+
+      url = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=10.8231&longitude=106.6297&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi,european_aqi&timezone=Asia/Ho_Chi_Minh"
+
+      with urllib.request.urlopen(url) as response:
+          data = json.loads(response.read())
+
+      current = data["current"]
+      record = {
+          "ingested_at": datetime.now(timezone.utc).isoformat(),
+          "observed_at": current.get("time"),
+          "latitude": data.get("latitude"),
+          "longitude": data.get("longitude"),
+          "pm10": current.get("pm10"),
+          "pm2_5": current.get("pm2_5"),
+          "carbon_monoxide": current.get("carbon_monoxide"),
+          "nitrogen_dioxide": current.get("nitrogen_dioxide"),
+          "sulphur_dioxide": current.get("sulphur_dioxide"),
+          "ozone": current.get("ozone"),
+          "us_aqi": current.get("us_aqi"),
+          "european_aqi": current.get("european_aqi")
+      }
+
+      with open("air_quality.json", "w") as f:
+          json.dump(record, f, indent=2)
+
+  # [LOAD] Upload the formatted JSON file to Google Cloud Storage (Data Lake)
+  - id: load
+    type: io.kestra.plugin.gcp.gcs.Upload
+    from: "{{outputs.extract_and_transform.outputFiles['air_quality.json']}}"
+    to: "gs://hcm-air-quality-486008/bronze/hourly/{{execution.startDate | date('yyyy-MM-dd')}}/{{execution.startDate | date('HH')}}/air_quality.json"
+
+# --- Automation trigger to run the flow periodically ---
+triggers:
+  # [TRIGGER] Hourly cron job 
+  - id: hourly_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 * * * *"

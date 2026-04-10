@@ -1,0 +1,27 @@
+id: historical_backfill
+namespace: hcm_pipeline
+
+tasks:
+  - id: upload_historical
+    type: io.kestra.plugin.scripts.python.Script
+    containerImage: python:3.11-alpine
+    beforeCommands:
+      - pip install google-cloud-storage --quiet
+    namespaceFiles:
+      enabled: true
+    env:
+      GCP_CREDS: "{{kv('GCP_CREDS')}}"
+    script: |
+      import json
+      import os
+      from google.cloud import storage
+      from google.oauth2 import service_account
+
+      sa_key = json.loads(os.environ["GCP_CREDS"])
+      credentials = service_account.Credentials.from_service_account_info(sa_key)
+      client = storage.Client(credentials=credentials, project="de-zoomcamp-2026-486008")
+
+      bucket = client.bucket("hcm-air-quality-486008")
+      blob = bucket.blob("bronze/historical/air_quality_historical.csv")
+      blob.upload_from_filename("data/air_quality_historical.csv", content_type="text/csv")
+      print("Uploaded to gs://hcm-air-quality-486008/bronze/historical/air_quality_historical.csv")
