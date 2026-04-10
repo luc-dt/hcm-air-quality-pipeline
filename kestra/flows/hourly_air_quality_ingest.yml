@@ -1,5 +1,5 @@
 id: hourly_air_quality_ingest
-namespace: hcm_pipeline
+namespace: hcm_pipeline 
 
 # --- Plugin configurations for BigQuery and GCS ---
 pluginDefaults:

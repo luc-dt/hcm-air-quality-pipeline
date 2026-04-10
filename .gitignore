@@ -15,3 +15,5 @@ __pycache__/
 *.tfstate.backup
 .terraform.lock.hcl
 *.tfvars
+
+**/.ipynb_checkpoints/

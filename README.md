@@ -170,8 +170,8 @@ docker compose up -d
 
 In the Kestra UI, execute:
 
-1. `hcm.air_quality / historical_backfill` — uploads CSV to `bronze/historical/`
-2. `hcm.air_quality / hourly_air_quality_ingest` — starts hourly data collection
+1. `hcm_pipeline / historical_backfill` — uploads CSV to `bronze/historical/`
+2. `hcm_pipeline / hourly_air_quality_ingest` — starts hourly data collection
 
 ### Step 6 — Run PySpark transforms
 
