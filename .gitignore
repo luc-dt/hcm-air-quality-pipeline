@@ -1,6 +1,9 @@
 # Data
 data/
 
+# Docs
+docs/
+
 # Secrets & credentials
 .env
 *.json
@@ -17,3 +20,4 @@ __pycache__/
 *.tfvars
 
 **/.ipynb_checkpoints/
+
