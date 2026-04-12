@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw
+    database: de-zoomcamp-2026-486008
+    schema: hcm_air_quality
+    tables:
+      - name: raw_hourly
+      - name: raw_historical
+
+      

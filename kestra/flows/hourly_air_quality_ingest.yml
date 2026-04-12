@@ -52,6 +52,20 @@ tasks:
     from: "{{outputs.extract_and_transform.outputFiles['air_quality.json']}}"
     to: "gs://hcm-air-quality-486008/bronze/hourly/{{execution.startDate | date('yyyy-MM-dd')}}/{{execution.startDate | date('HH')}}/air_quality.json"
 
+  # [TRANSFORM] Run PySpark to promote bronze JSON → silver Parquet
+  - id: pyspark_bronze_to_silver
+    type: io.kestra.plugin.scripts.shell.Script
+    containerImage: hcm-pyspark:3.5
+    env:
+      DATE: "{{execution.startDate | date('yyyy-MM-dd')}}"
+      HOUR: "{{execution.startDate | date('HH')}}"
+      GCP_CREDS: "{{kv('GCP_CREDS')}}"
+    script: |
+      #!/bin/bash
+      set -e
+      printf '%s' "$GCP_CREDS" > /tmp/sa_key.json
+      spark-submit --jars /app/gcs-connector.jar /app/transform_hourly.py
+
 # --- Automation trigger to run the flow periodically ---
 triggers:
   # [TRIGGER] Hourly cron job 
