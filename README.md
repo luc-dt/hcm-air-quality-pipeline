@@ -90,6 +90,35 @@ reflects DE Zoomcamp curriculum coverage and a realistic junior DE portfolio.
 
 ---
 
+## Repository Structure
+
+```
+hcm-air-quality-pipeline/
+├── terraform/              # GCS + BigQuery provisioning
+├── kestra/
+│   ├── docker-compose.yml
+│   ├── spark.Dockerfile
+│   ├── transform_hourly.py
+│   ├── setup_kv.sh
+│   └── flows/
+│       ├── hourly_air_quality_ingest.yml
+│       └── historical_backfill.yml
+├── notebooks/              # PySpark development (Jupyter)
+│   ├── transform_historical.ipynb
+│   └── transform_hourly.ipynb
+├── dbt/                    # Transformation models
+│   └── hcm_air_quality/
+│       ├── models/
+│       │   ├── staging/
+│       │   └── marts/
+│       └── tests/          # Custom data quality tests
+├── data/                   # Local raw data (gitignored)
+├── keys/                   # GCP service account key (gitignored)
+└── README.md
+```
+
+---
+
 ## GCS Structure
 
 ```
@@ -125,27 +154,6 @@ plus custom range checks (`assert_aqi_range`, `assert_pollutants_non_negative`).
 ![dbt Lineage](images/dbt_lineage.png)
 
 ---
-
-## Dashboard
-
-[View AQI Dashboard](https://lookerstudio.google.com/reporting/6439d918-7211-40b9-b49a-0bc56a0fd8e6)
-
-![AQI Trend](images/aqi_trend.png)
-
-*7-day rolling AQI average shows consistent Moderate–Unhealthy levels across 2022–2026, with seasonal spikes in dry season months.*
-
-[View PM2.5 Dashboard](https://lookerstudio.google.com/reporting/4a9bf4b6-6383-4f5a-ac60-a8e2be89521e)
-
-![PM2.5 Trend](images/pm25_trend.png)
-
-*PM2.5 and PM10 concentrations consistently exceed WHO annual safe thresholds (15 µg/m³ and 45 µg/m³ respectively).*
-
-> **Note:** Data gap exists for March 2026 — the historical dataset ends Feb 18, 2026
-> and live hourly collection began April 8, 2026. The pipeline is operational;
-> the gap reflects the project start date, not a pipeline failure.
-
----
-
 
 ## How to Reproduce
 
@@ -277,35 +285,20 @@ dbt test
 
 ### Step 10 — View dashboard
 
-Open the [Looker Studio dashboard](https://lookerstudio.google.com/reporting/6439d918-7211-40b9-b49a-0bc56a0fd8e6).
+[View AQI Dashboard](https://lookerstudio.google.com/reporting/6439d918-7211-40b9-b49a-0bc56a0fd8e6)
 
----
+![AQI Trend](images/aqi_trend.png)
 
-## Repository Structure
+*7-day rolling AQI average shows consistent Moderate–Unhealthy levels across 2022–2026, with seasonal spikes in dry season months.*
 
-```
-hcm-air-quality-pipeline/
-├── terraform/              # GCS + BigQuery provisioning
-├── kestra/
-│   ├── docker-compose.yml
-│   ├── spark.Dockerfile
-│   ├── transform_hourly.py
-│   ├── setup_kv.sh
-│   └── flows/
-│       ├── hourly_air_quality_ingest.yml
-│       └── historical_backfill.yml
-├── notebooks/              # PySpark development (Jupyter)
-│   ├── transform_historical.ipynb
-│   └── transform_hourly.ipynb
-├── dbt/                    # Transformation models
-│   └── hcm_air_quality/
-│       ├── models/
-│       │   ├── staging/
-│       │   └── marts/
-│       └── tests/          # Custom data quality tests
-├── data/                   # Local raw data (gitignored)
-├── keys/                   # GCP service account key (gitignored)
-└── README.md
-```
+[View PM2.5 Dashboard](https://lookerstudio.google.com/reporting/4a9bf4b6-6383-4f5a-ac60-a8e2be89521e)
+
+![PM2.5 Trend](images/pm25_trend.png)
+
+*PM2.5 and PM10 concentrations consistently exceed WHO annual safe thresholds (15 µg/m³ and 45 µg/m³ respectively).*
+
+> **Note:** Data gap exists for March 2026 — the historical dataset ends Feb 18, 2026
+> and live hourly collection began April 8, 2026. The pipeline is operational;
+> the gap reflects the project start date, not a pipeline failure.
 
 ---
