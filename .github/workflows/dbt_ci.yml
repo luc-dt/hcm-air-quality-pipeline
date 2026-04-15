@@ -1,0 +1,52 @@
+name: dbt CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dbt-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dbt
+        run: pip install dbt-bigquery==1.11.1
+
+      - name: Write GCP credentials
+        run: |
+          mkdir -p keys
+          echo '${{ secrets.GCP_CREDENTIALS }}' > keys/hcm-pipeline-sa.json
+
+      - name: Write dbt profiles
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          hcm_air_quality:
+            target: dev
+            outputs:
+              dev:
+                type: bigquery
+                method: service-account
+                project: de-zoomcamp-2026-486008
+                dataset: hcm_air_quality
+                location: asia-southeast1
+                keyfile: keys/hcm-pipeline-sa.json
+                threads: 4
+                timeout_seconds: 300
+          EOF
+
+      - name: Run dbt
+        working-directory: dbt/hcm_air_quality
+        run: |
+          dbt run
+          dbt test

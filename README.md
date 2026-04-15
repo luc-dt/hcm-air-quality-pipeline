@@ -4,6 +4,8 @@
 > for Ho Chi Minh City, transforms it through a medallion architecture on GCS and
 > BigQuery, and surfaces pollution trends via a Looker Studio dashboard.
 
+![CI](https://github.com/luc-dt/hcm-air-quality-pipeline/actions/workflows/dbt_ci.yml/badge.svg)
+
 ---
 
 ## Problem Statement
@@ -54,7 +56,7 @@ Zenodo CSV      ──► Kestra ──► GCS bronze/historical/
 | Orchestration  | Kestra (Docker Compose)                         |
 | Processing     | PySpark                                         |
 | Data Lake      | Google Cloud Storage (medallion: bronze/silver) |
-| Data Warehouse | BigQuery (partitioned external tables)              |
+| Data Warehouse | BigQuery (partitioned external tables)          |
 | Transformation | dbt                                             |
 | Dashboard      | Looker Studio                                   |
 
@@ -93,7 +95,7 @@ reflects DE Zoomcamp curriculum coverage and a realistic junior DE portfolio.
 ```
 hcm-air-quality-486008/
 ├── bronze/
-│   ├── hourly/YYYY-MM-DD/HH/air_quality.json    ← raw API response (one per hour)
+│   ├── hourly/YYYY-MM-DD/HH/air_quality.json     ← raw API response (one per hour)
 │   └── historical/air_quality_historical.csv     ← raw Zenodo CSV
 └── silver/
     ├── hourly/date=YYYY-MM-DD/                   ← cleaned Parquet, partitioned by date
@@ -117,6 +119,9 @@ dbt layers:
 | Mart    | `mart_daily_aqi`  | Daily AQI, 7-day rolling average, AQI category label |
 | Mart    | `mart_pollutants` | Daily pollutant concentrations (PM2.5, PM10, etc.)   |
 
+**dbt tests:** 10 tests total — `not_null`, `unique`, `accepted_values` on mart columns,
+plus custom range checks (`assert_aqi_range`, `assert_pollutants_non_negative`).
+
 ![dbt Lineage](images/dbt_lineage.png)
 
 ---
@@ -127,14 +132,20 @@ dbt layers:
 
 ![AQI Trend](images/aqi_trend.png)
 
+*7-day rolling AQI average shows consistent Moderate–Unhealthy levels across 2022–2026, with seasonal spikes in dry season months.*
+
 [View PM2.5 Dashboard](https://lookerstudio.google.com/reporting/4a9bf4b6-6383-4f5a-ac60-a8e2be89521e)
 
 ![PM2.5 Trend](images/pm25_trend.png)
 
+*PM2.5 and PM10 concentrations consistently exceed WHO annual safe thresholds (15 µg/m³ and 45 µg/m³ respectively).*
+
 > **Note:** Data gap exists for March 2026 — the historical dataset ends Feb 18, 2026
-> and live hourly collection began April 8, 2026.
+> and live hourly collection began April 8, 2026. The pipeline is operational;
+> the gap reflects the project start date, not a pipeline failure.
 
 ---
+
 
 ## How to Reproduce
 
@@ -180,24 +191,29 @@ docker compose up -d
 # UI available at http://localhost:8080
 # login: admin@kestra.io / Admin1234!
 ```
-### Step 4.5 — Populate Kestra KV store
 
-The flows authenticate with GCP via a KV store entry. Run this once after Kestra is up:
+### Step 5 — Import flows and populate Kestra KV store
+
+In the Kestra UI at http://localhost:8080, go to **Flows → Import** and upload
+both YAML files from `kestra/flows/`.
+
+Then run this once to load your GCP credentials:
 
 ```bash
 bash kestra/setup_kv.sh
 ```
 
-This reads `keys/hcm-pipeline-sa.json` and loads it into the Kestra KV store as `GCP_CREDS`. You should see `200` printed followed by "KV store populated".
+This reads `keys/hcm-pipeline-sa.json` and loads it into the Kestra KV store
+as `GCP_CREDS`. You should see `HTTP: 200` and "KV store populated".
 
-### Step 5 — Run Kestra flows
+### Step 6 — Run Kestra flows
 
 In the Kestra UI, execute:
 
 1. `hcm_pipeline / historical_backfill` — uploads CSV to `bronze/historical/`
 2. `hcm_pipeline / hourly_air_quality_ingest` — starts hourly data collection
 
-### Step 6 — Run PySpark transforms
+### Step 7 — Run PySpark transforms
 
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=keys/hcm-pipeline-sa.json
@@ -209,7 +225,7 @@ jupyter notebook notebooks/transform_historical.ipynb
 jupyter notebook notebooks/transform_hourly.ipynb
 ```
 
-### Step 7 — Create BigQuery external tables
+### Step 8 — Create BigQuery external tables
 
 In BigQuery Query Editor, create two external tables pointing at GCS silver layer:
 
@@ -231,7 +247,7 @@ OPTIONS (
 );
 ```
 
-### Step 8 — Run dbt
+### Step 9 — Run dbt
 
 Create `~/.dbt/profiles.yml` with the following content:
 
@@ -259,7 +275,7 @@ dbt run
 dbt test
 ```
 
-### Step 9 — View dashboard
+### Step 10 — View dashboard
 
 Open the [Looker Studio dashboard](https://lookerstudio.google.com/reporting/6439d918-7211-40b9-b49a-0bc56a0fd8e6).
 
@@ -274,6 +290,7 @@ hcm-air-quality-pipeline/
 │   ├── docker-compose.yml
 │   ├── spark.Dockerfile
 │   ├── transform_hourly.py
+│   ├── setup_kv.sh
 │   └── flows/
 │       ├── hourly_air_quality_ingest.yml
 │       └── historical_backfill.yml
@@ -282,16 +299,13 @@ hcm-air-quality-pipeline/
 │   └── transform_hourly.ipynb
 ├── dbt/                    # Transformation models
 │   └── hcm_air_quality/
-│       └── models/
-│           ├── staging/
-│           └── marts/
+│       ├── models/
+│       │   ├── staging/
+│       │   └── marts/
+│       └── tests/          # Custom data quality tests
 ├── data/                   # Local raw data (gitignored)
 ├── keys/                   # GCP service account key (gitignored)
 └── README.md
 ```
 
 ---
-
-## License
-
-MIT

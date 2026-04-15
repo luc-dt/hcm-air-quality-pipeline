@@ -1,9 +1,15 @@
 id: historical_backfill
-namespace: hcm_pipeline 
+namespace: hcm_pipeline
 
 tasks:
   - id: upload_historical
     type: io.kestra.plugin.scripts.python.Script
+    timeout: PT10M
+    retry:
+      type: exponential
+      maxAttempts: 3
+      initialDelay: PT30S
+      maxDelay: PT5M
     containerImage: python:3.11-alpine
     beforeCommands:
       - pip install google-cloud-storage --quiet

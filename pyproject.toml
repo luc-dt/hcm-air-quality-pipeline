@@ -1,7 +1,18 @@
 [project]
 name = "hcm-air-quality-pipeline"
 version = "0.1.0"
-description = "Add your description here"
+description = "End-to-end batch data pipeline for Ho Chi Minh City air quality analytics using Terraform, Kestra, PySpark, dbt, BigQuery, and Looker Studio."
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []
+requires-python = ">=3.11"
+dependencies = [
+    "dbt-bigquery==1.11.1",
+    "pyspark==3.5.3",
+    "google-cloud-storage==2.10.0",
+    "google-cloud-bigquery==3.14.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4.0",
+    "pytest>=8.0.0",
+]

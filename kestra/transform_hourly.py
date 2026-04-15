@@ -39,6 +39,17 @@ df = df.withColumn("date", F.to_date(F.col("timestamp")))
 df = df.withColumn("hour", F.hour(F.to_timestamp(F.col("timestamp"))))
 df = df.withColumn("ingested_at", F.current_timestamp())
 
+# Data validation before writing to silver
+row_count = df.count()
+if row_count == 0:
+    raise ValueError(f"No data rows for date={DATE}, hour={HOUR} — skipping silver write")
+
+null_aqi_count = df.filter(F.col("us_aqi").isNull()).count()
+if null_aqi_count == row_count:
+    raise ValueError(f"All us_aqi values are null for date={DATE}, hour={HOUR} — skipping silver write")
+
+print(f"Validation passed: {row_count} rows, {null_aqi_count} null AQI values")
+
 dest = f"gs://{BUCKET}/silver/hourly/"
 df.write.mode("append").partitionBy("date").parquet(dest)
 print(f"Done — date={DATE}, hour={HOUR}")

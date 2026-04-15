@@ -21,13 +21,14 @@ models:
         description: "EPA category label derived from us_aqi."
         tests:
           - accepted_values:
-              values:
-                - 'Good'
-                - 'Moderate'
-                - 'Unhealthy for Sensitive Groups'
-                - 'Unhealthy'
-                - 'Very Unhealthy'
-                - 'Hazardous'
+              arguments:
+                values:
+                  - 'Good'
+                  - 'Moderate'
+                  - 'Unhealthy for Sensitive Groups'
+                  - 'Unhealthy'
+                  - 'Very Unhealthy'
+                  - 'Hazardous'
 
   - name: mart_pollutants
     description: "Daily pollutant concentrations for Ho Chi Minh City, combining historical and live hourly data. Values in µg/m³."

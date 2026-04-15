@@ -1,23 +1,25 @@
 id: hourly_air_quality_ingest
-namespace: hcm_pipeline 
+namespace: hcm_pipeline
 
-# --- Plugin configurations for BigQuery and GCS ---
 pluginDefaults:
   - type: io.kestra.plugin.gcp
     values:
       serviceAccount: "{{kv('GCP_CREDS')}}"
       projectId: "de-zoomcamp-2026-486008"
 
-# --- List of logic steps (tasks) in the pipeline ---
 tasks:
-  # [EXTRACT & TRANSFORM] Fetch hourly air quality metrics from Open-Meteo API
   - id: extract_and_transform
     type: io.kestra.plugin.scripts.python.Script
+    timeout: PT5M
+    retry:
+      type: exponential
+      maxAttempts: 3
+      initialDelay: PT30S
+      maxDelay: PT5M
     containerImage: python:3.11-alpine
     outputFiles:
       - "*.json"
     script: |
-      # Python script to extract and format JSON data
       import json
       import urllib.request
       from datetime import datetime, timezone
@@ -46,15 +48,25 @@ tasks:
       with open("air_quality.json", "w") as f:
           json.dump(record, f, indent=2)
 
-  # [LOAD] Upload the formatted JSON file to Google Cloud Storage (Data Lake)
   - id: load
     type: io.kestra.plugin.gcp.gcs.Upload
+    timeout: PT5M
+    retry:
+      type: exponential
+      maxAttempts: 3
+      initialDelay: PT30S
+      maxDelay: PT5M
     from: "{{outputs.extract_and_transform.outputFiles['air_quality.json']}}"
     to: "gs://hcm-air-quality-486008/bronze/hourly/{{execution.startDate | date('yyyy-MM-dd')}}/{{execution.startDate | date('HH')}}/air_quality.json"
 
-  # [TRANSFORM] Run PySpark to promote bronze JSON → silver Parquet
   - id: pyspark_bronze_to_silver
     type: io.kestra.plugin.scripts.shell.Script
+    timeout: PT15M
+    retry:
+      type: exponential
+      maxAttempts: 2
+      initialDelay: PT1M
+      maxDelay: PT5M
     containerImage: hcm-pyspark:3.5
     env:
       DATE: "{{execution.startDate | date('yyyy-MM-dd')}}"
@@ -66,9 +78,7 @@ tasks:
       printf '%s' "$GCP_CREDS" > /tmp/sa_key.json
       spark-submit --jars /app/gcs-connector.jar /app/transform_hourly.py
 
-# --- Automation trigger to run the flow periodically ---
 triggers:
-  # [TRIGGER] Hourly cron job 
   - id: hourly_schedule
     type: io.kestra.plugin.core.trigger.Schedule
     cron: "0 * * * *"
