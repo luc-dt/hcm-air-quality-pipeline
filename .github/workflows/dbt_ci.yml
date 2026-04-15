@@ -40,7 +40,7 @@ jobs:
                 project: de-zoomcamp-2026-486008
                 dataset: hcm_air_quality
                 location: asia-southeast1
-                keyfile: keys/hcm-pipeline-sa.json
+                keyfile: ${{ github.workspace }}/keys/hcm-pipeline-sa.json
                 threads: 4
                 timeout_seconds: 300
           EOF
