@@ -6,6 +6,11 @@ sources:
     schema: hcm_air_quality
     tables:
       - name: raw_hourly
+        description: "Raw hourly air quality JSON ingested by Kestra from Open-Meteo API."
+        config:
+          loaded_at_field: ingested_at
+          freshness:
+            warn_after: {count: 2, period: hour}
+            error_after: {count: 6, period: hour}
       - name: raw_historical
-
-      
+        description: "Raw historical daily air quality CSV from Zenodo dataset."

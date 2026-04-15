@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: stg_hourly
+    description: "Cleaned hourly air quality readings from Open-Meteo API. Timestamp parsed, types cast."
+    columns:
+      - name: observed_at
+        description: "Timestamp of the hourly reading."
+        tests:
+          - not_null
+
+  - name: stg_historical
+    description: "Cleaned historical daily air quality from Zenodo CSV. Date converted from DD-MM-YY to DATE type."
+    columns:
+      - name: observed_at
+        description: "Date of the daily measurement."
+        tests:
+          - not_null

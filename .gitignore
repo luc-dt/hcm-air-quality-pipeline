@@ -10,6 +10,7 @@ docs/
 keys/
 
 # Python
+.venv/
 __pycache__/
 
 # Terraform

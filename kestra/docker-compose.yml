@@ -7,6 +7,16 @@ volumes:
 
 services:
   # ─────────────────────────────────────────────────────────────────────────────
+  # Custom PySpark image for bronze → silver transformation
+  # Built from spark.Dockerfile — includes Java, PySpark 3.5, and GCS connector
+  # ─────────────────────────────────────────────────────────────────────────────
+  hcm-pyspark:
+    build:
+      context: .                        # build context is kestra/ directory
+      dockerfile: spark.Dockerfile      # uses kestra/spark.Dockerfile
+    image: hcm-pyspark:3.5              # tags the built image for Kestra to pull
+    command: ["echo", "hcm-pyspark image ready"]  # exits cleanly after build
+  # ─────────────────────────────────────────────────────────────────────────────
   # PostgreSQL — Backend database for Kestra
   # Stores all Kestra metadata: flows, executions, logs, triggers, etc.
   # ─────────────────────────────────────────────────────────────────────────────

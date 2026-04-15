@@ -33,7 +33,7 @@ Zenodo CSV      ──► Kestra ──► GCS bronze/historical/
                                         │
                                     BigQuery
                                         │
-                              dbt (stg → int_daily → mart_aqi)
+                   dbt (stg_hourly + stg_historical → mart_daily_aqi + mart_pollutants)
                                         │
                                Looker Studio dashboard
 ```
@@ -89,7 +89,7 @@ reflects DE Zoomcamp curriculum coverage and a realistic junior DE portfolio.
 ```
 hcm-air-quality-486008/
 ├── bronze/
-│   ├── hourly/YYYY-MM-DD/HH/air_quality.json    ← raw API response (24 hrs each)
+│   ├── hourly/YYYY-MM-DD/HH/air_quality.json    ← raw API response (one per hour)
 │   └── historical/air_quality_historical.csv     ← raw Zenodo CSV
 └── silver/
     ├── hourly/date=YYYY-MM-DD/                   ← cleaned Parquet, partitioned by date
@@ -100,24 +100,36 @@ hcm-air-quality-486008/
 
 ## Warehouse Design
 
-The BigQuery tables loaded from silver Parquet are:
+BigQuery external tables point directly at GCS silver Parquet files:
 
 - **Partitioned by** `date` — eliminates full scans for date-range queries
 - **Clustered by** `us_aqi` — accelerates AQI category filtering
 
 dbt layers:
 
-| Layer | Model | Description |
-| ----- | ----- | ----------- |
-| Staging | `stg_air_quality` | Type casting, column renaming |
-| Intermediate | `int_daily` | Daily aggregates, 7-day rolling averages |
-| Mart | `mart_aqi` | AQI category distribution, final dashboard grain |
+| Layer   | Model               | Description                                          |
+| ------- | ------------------- | ---------------------------------------------------- |
+| Staging | `stg_hourly`        | Timestamp parsing, type casting, column renaming     |
+| Staging | `stg_historical`    | Date format fix (`DD-MM-YY` → `DATE`), type casting  |
+| Mart    | `mart_daily_aqi`    | Daily AQI, 7-day rolling average, AQI category label |
+| Mart    | `mart_pollutants`   | Daily pollutant concentrations (PM2.5, PM10, etc.)   |
+
+![dbt Lineage](images/dbt_lineage.png)
 
 ---
 
 ## Dashboard
 
-_(add Looker Studio public link here)_
+[View AQI Dashboard](https://lookerstudio.google.com/reporting/6439d918-7211-40b9-b49a-0bc56a0fd8e6)
+
+![AQI Trend](images/aqi_trend.png)
+
+[View PM2.5 Dashboard](https://lookerstudio.google.com/reporting/4a9bf4b6-6383-4f5a-ac60-a8e2be89521e)
+
+![PM2.5 Trend](images/pm25_trend.png)
+
+> **Note:** Data gap exists for March 2026 — the historical dataset ends Feb 18, 2026
+> and live hourly collection began April 8, 2026.
 
 ---
 
@@ -185,22 +197,59 @@ jupyter notebook notebooks/transform_historical.ipynb
 jupyter notebook notebooks/transform_hourly.ipynb
 ```
 
-### Step 7 — Load silver to BigQuery
+### Step 7 — Create BigQuery external tables
 
-_(BigQuery external table or load job — to be added)_
+In BigQuery Query Editor, create two external tables pointing at GCS silver layer:
+
+```sql
+-- Hourly external table (Hive-partitioned by date)
+CREATE OR REPLACE EXTERNAL TABLE `de-zoomcamp-2026-486008.hcm_air_quality.raw_hourly`
+WITH PARTITION COLUMNS (date DATE)
+OPTIONS (
+  format = 'PARQUET',
+  uris = ['gs://hcm-air-quality-486008/silver/hourly/*'],
+  hive_partition_uri_prefix = 'gs://hcm-air-quality-486008/silver/hourly/'
+);
+
+-- Historical external table
+CREATE OR REPLACE EXTERNAL TABLE `de-zoomcamp-2026-486008.hcm_air_quality.raw_historical`
+OPTIONS (
+  format = 'PARQUET',
+  uris = ['gs://hcm-air-quality-486008/silver/historical/*.parquet']
+);
+```
 
 ### Step 8 — Run dbt
 
+Create `~/.dbt/profiles.yml` with the following content:
+
+```yaml
+hcm_air_quality:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: de-zoomcamp-2026-486008
+      dataset: hcm_air_quality
+      location: asia-southeast1
+      keyfile: keys/hcm-pipeline-sa.json
+      threads: 4
+      timeout_seconds: 300
+```
+
+Then run:
+
 ```bash
-cd dbt
-dbt deps
+cd dbt/hcm_air_quality
+dbt debug        # verify connection before running models
 dbt run
 dbt test
 ```
 
 ### Step 9 — View dashboard
 
-Open the Looker Studio link above.
+Open the [Looker Studio dashboard](https://lookerstudio.google.com/reporting/6439d918-7211-40b9-b49a-0bc56a0fd8e6).
 
 ---
 
@@ -211,6 +260,8 @@ hcm-air-quality-pipeline/
 ├── terraform/              # GCS + BigQuery provisioning
 ├── kestra/
 │   ├── docker-compose.yml
+│   ├── spark.Dockerfile
+│   ├── transform_hourly.py
 │   └── flows/
 │       ├── hourly_air_quality_ingest.yml
 │       └── historical_backfill.yml
@@ -218,6 +269,10 @@ hcm-air-quality-pipeline/
 │   ├── transform_historical.ipynb
 │   └── transform_hourly.ipynb
 ├── dbt/                    # Transformation models
+│   └── hcm_air_quality/
+│       └── models/
+│           ├── staging/
+│           └── marts/
 ├── data/                   # Local raw data (gitignored)
 ├── keys/                   # GCP service account key (gitignored)
 └── README.md

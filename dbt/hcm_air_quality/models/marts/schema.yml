@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: mart_daily_aqi
+    description: "Daily Air Quality Index for Ho Chi Minh City, combining historical (2022–2026) and live hourly data. Includes 7-day rolling average and EPA AQI category labels."
+    columns:
+      - name: observed_at
+        description: "Date of the air quality measurement."
+        tests:
+          - not_null
+          - unique
+      - name: us_aqi
+        description: "US EPA Air Quality Index (0–500). Higher values indicate worse air quality."
+        tests:
+          - not_null
+      - name: european_aqi
+        description: "European Air Quality Index scale."
+      - name: us_aqi_7d_avg
+        description: "7-day rolling average of US AQI, smoothing daily noise to reveal pollution trends."
+      - name: aqi_category
+        description: "EPA category label derived from us_aqi."
+        tests:
+          - accepted_values:
+              values:
+                - 'Good'
+                - 'Moderate'
+                - 'Unhealthy for Sensitive Groups'
+                - 'Unhealthy'
+                - 'Very Unhealthy'
+                - 'Hazardous'
+
+  - name: mart_pollutants
+    description: "Daily pollutant concentrations for Ho Chi Minh City, combining historical and live hourly data. Values in µg/m³."
+    columns:
+      - name: observed_at
+        description: "Date of the measurement."
+        tests:
+          - not_null
+          - unique
+      - name: pm2_5
+        description: "Fine particulate matter (≤2.5µm). WHO safe annual threshold: 15 µg/m³."
+      - name: pm10
+        description: "Coarse particulate matter (≤10µm). WHO safe annual threshold: 45 µg/m³."
+      - name: carbon_monoxide
+        description: "Carbon monoxide concentration in µg/m³."
+      - name: nitrogen_dioxide
+        description: "Nitrogen dioxide concentration in µg/m³."
+      - name: sulphur_dioxide
+        description: "Sulphur dioxide concentration in µg/m³."
+      - name: ozone
+        description: "Ozone concentration in µg/m³."

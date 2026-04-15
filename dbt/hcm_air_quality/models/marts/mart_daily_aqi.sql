@@ -3,6 +3,7 @@
 with historical as (
     select observed_at, us_aqi, european_aqi
     from {{ ref('stg_historical') }}
+    where us_aqi is not null
 ),
 
 hourly as (
@@ -39,11 +40,12 @@ final as (
             rows between 6 preceding and current row
         ), 1) as us_aqi_7d_avg,
         case
-            when us_aqi <= 50  then 'Good'
-            when us_aqi <= 100 then 'Moderate'
-            when us_aqi <= 150 then 'Unhealthy for Sensitive Groups'
-            when us_aqi <= 200 then 'Unhealthy'
-            when us_aqi <= 300 then 'Very Unhealthy'
+            when us_aqi is null then 'Unknown'
+            when us_aqi <= 50   then 'Good'
+            when us_aqi <= 100  then 'Moderate'
+            when us_aqi <= 150  then 'Unhealthy for Sensitive Groups'
+            when us_aqi <= 200  then 'Unhealthy'
+            when us_aqi <= 300  then 'Very Unhealthy'
             else 'Hazardous'
         end as aqi_category
     from aggregated
