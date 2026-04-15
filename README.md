@@ -37,7 +37,9 @@ Zenodo CSV      ──► Kestra ──► GCS bronze/historical/
                                         │
                                Looker Studio dashboard
 ```
+
 ![Architecture Diagram](images/new_architecture.svg)
+
 > Infrastructure (GCS bucket + BigQuery dataset) is provisioned by Terraform.
 > Kestra runs locally via Docker Compose.
 > PySpark runs locally; development done in Jupyter notebooks under `notebooks/`.
@@ -46,15 +48,15 @@ Zenodo CSV      ──► Kestra ──► GCS bronze/historical/
 
 ## Tech Stack
 
-| Layer          | Tool                                      |
-| -------------- | ----------------------------------------- |
-| Infrastructure | Terraform + GCP                           |
-| Orchestration  | Kestra (Docker Compose)                   |
-| Processing     | PySpark                                   |
+| Layer          | Tool                                            |
+| -------------- | ----------------------------------------------- |
+| Infrastructure | Terraform + GCP                                 |
+| Orchestration  | Kestra (Docker Compose)                         |
+| Processing     | PySpark                                         |
 | Data Lake      | Google Cloud Storage (medallion: bronze/silver) |
-| Data Warehouse | BigQuery (partitioned + clustered)        |
-| Transformation | dbt                                       |
-| Dashboard      | Looker Studio                             |
+| Data Warehouse | BigQuery (partitioned external tables)              |
+| Transformation | dbt                                             |
+| Dashboard      | Looker Studio                                   |
 
 ---
 
@@ -70,6 +72,7 @@ reflects DE Zoomcamp curriculum coverage and a realistic junior DE portfolio.
 ## Data Sources
 
 ### Historical (one-time backfill)
+
 - **Source:** [Zenodo — Air Quality Dataset for Ho Chi Minh City](https://zenodo.org/records/18673714)
 - **Author:** Nitiraj Kulkarni
 - **Coverage:** 2022-08-01 to 2026-02-18, daily averages
@@ -77,6 +80,7 @@ reflects DE Zoomcamp curriculum coverage and a realistic junior DE portfolio.
 - **Note:** Raw date format is `DD-MM-YY` — converted to `YYYY-MM-DD` in PySpark
 
 ### Live (hourly)
+
 - **Source:** [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api)
 - **Coordinates:** 10.8231° N, 106.6297° E (Ho Chi Minh City)
 - **Frequency:** Every hour via Kestra scheduler
@@ -103,16 +107,15 @@ hcm-air-quality-486008/
 BigQuery external tables point directly at GCS silver Parquet files:
 
 - **Partitioned by** `date` — eliminates full scans for date-range queries
-- **Clustered by** `us_aqi` — accelerates AQI category filtering
 
 dbt layers:
 
-| Layer   | Model               | Description                                          |
-| ------- | ------------------- | ---------------------------------------------------- |
-| Staging | `stg_hourly`        | Timestamp parsing, type casting, column renaming     |
-| Staging | `stg_historical`    | Date format fix (`DD-MM-YY` → `DATE`), type casting  |
-| Mart    | `mart_daily_aqi`    | Daily AQI, 7-day rolling average, AQI category label |
-| Mart    | `mart_pollutants`   | Daily pollutant concentrations (PM2.5, PM10, etc.)   |
+| Layer   | Model             | Description                                          |
+| ------- | ----------------- | ---------------------------------------------------- |
+| Staging | `stg_hourly`      | Timestamp parsing, type casting, column renaming     |
+| Staging | `stg_historical`  | Date format fix (`DD-MM-YY` → `DATE`), type casting  |
+| Mart    | `mart_daily_aqi`  | Daily AQI, 7-day rolling average, AQI category label |
+| Mart    | `mart_pollutants` | Daily pollutant concentrations (PM2.5, PM10, etc.)   |
 
 ![dbt Lineage](images/dbt_lineage.png)
 
@@ -177,6 +180,15 @@ docker compose up -d
 # UI available at http://localhost:8080
 # login: admin@kestra.io / Admin1234!
 ```
+### Step 4.5 — Populate Kestra KV store
+
+The flows authenticate with GCP via a KV store entry. Run this once after Kestra is up:
+
+```bash
+bash kestra/setup_kv.sh
+```
+
+This reads `keys/hcm-pipeline-sa.json` and loads it into the Kestra KV store as `GCP_CREDS`. You should see `200` printed followed by "KV store populated".
 
 ### Step 5 — Run Kestra flows
 
