@@ -1,5 +1,6 @@
 id: hourly_air_quality_ingest
 namespace: hcm_pipeline
+# Flow to fetch hourly air quality data from Open-Meteo API and process it into the Bronze and Silver layers.
 
 pluginDefaults:
   - type: io.kestra.plugin.gcp
@@ -8,6 +9,7 @@ pluginDefaults:
       projectId: "de-zoomcamp-2026-486008"
 
 tasks:
+  # Task to fetch current air quality data from the Open-Meteo API, parse it, and save as a local JSON file.
   - id: extract_and_transform
     type: io.kestra.plugin.scripts.python.Script
     timeout: PT5M
@@ -48,6 +50,7 @@ tasks:
       with open("air_quality.json", "w") as f:
           json.dump(record, f, indent=2)
 
+  # Task to upload the extracted JSON file to the Bronze layer in Google Cloud Storage, partitioned by date and hour.
   - id: load
     type: io.kestra.plugin.gcp.gcs.Upload
     timeout: PT5M
@@ -59,6 +62,7 @@ tasks:
     from: "{{outputs.extract_and_transform.outputFiles['air_quality.json']}}"
     to: "gs://hcm-air-quality-486008/bronze/hourly/{{execution.startDate | date('yyyy-MM-dd')}}/{{execution.startDate | date('HH')}}/air_quality.json"
 
+  # Task to execute a PySpark script via dockerized spark-submit which reads from Bronze and writes to Silver layer.
   - id: pyspark_bronze_to_silver
     type: io.kestra.plugin.scripts.shell.Script
     timeout: PT15M
@@ -79,6 +83,7 @@ tasks:
       spark-submit --jars /app/gcs-connector.jar /app/transform_hourly.py
 
 triggers:
+  # Schedule indicating the flow will run automatically at the start of every hour.
   - id: hourly_schedule
     type: io.kestra.plugin.core.trigger.Schedule
     cron: "0 * * * *"

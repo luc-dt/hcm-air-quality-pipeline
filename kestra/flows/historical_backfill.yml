@@ -1,7 +1,9 @@
 id: historical_backfill
 namespace: hcm_pipeline
+# Flow to upload historical air quality data to Google Cloud Storage.
 
 tasks:
+  # Task to upload the local historical CSV file (data/air_quality_historical.csv) to GCS bronze layer using Python.
   - id: upload_historical
     type: io.kestra.plugin.scripts.python.Script
     timeout: PT10M

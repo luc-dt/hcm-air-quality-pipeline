@@ -197,7 +197,7 @@ Download `air_quality_historical.csv` from
 cd kestra
 docker compose up -d
 # UI available at http://localhost:8080
-# login: admin@kestra.io / Admin1234!
+# Default credentials are configured in kestra/docker-compose.yml
 ```
 
 ### Step 5 — Import flows and populate Kestra KV store
@@ -289,13 +289,13 @@ dbt test
 
 ![AQI Trend](images/aqi_trend.png)
 
-*7-day rolling AQI average shows consistent Moderate–Unhealthy levels across 2022–2026, with seasonal spikes in dry season months.*
+_7-day rolling AQI average shows consistent Moderate–Unhealthy levels across 2022–2026, with seasonal spikes in dry season months._
 
 [View PM2.5 Dashboard](https://lookerstudio.google.com/reporting/4a9bf4b6-6383-4f5a-ac60-a8e2be89521e)
 
 ![PM2.5 Trend](images/pm25_trend.png)
 
-*PM2.5 and PM10 concentrations consistently exceed WHO annual safe thresholds (15 µg/m³ and 45 µg/m³ respectively).*
+_PM2.5 and PM10 concentrations consistently exceed WHO annual safe thresholds (15 µg/m³ and 45 µg/m³ respectively)._
 
 > **Note:** Data gap exists for March 2026 — the historical dataset ends Feb 18, 2026
 > and live hourly collection began April 8, 2026. The pipeline is operational;
