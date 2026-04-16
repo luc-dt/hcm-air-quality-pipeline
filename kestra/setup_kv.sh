@@ -14,10 +14,10 @@ fi
 GCP_CREDS=$(cat "$KEY_PATH")
 
 # Task 4: Push the credentials to Kestra's Key-Value store via REST API
+# Default Kestra credentials — only valid on localhost
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
   http://localhost:8080/api/v1/namespaces/hcm_pipeline/kv/GCP_CREDS \
   -H "Content-Type: application/json" \
-  # Default Kestra credentials — only valid on localhost
   -u "admin@kestra.io:Admin1234!" \
   -d "{\"value\": $(echo $GCP_CREDS | python -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}")
 
