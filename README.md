@@ -4,7 +4,6 @@
 > for Ho Chi Minh City, transforms it through a medallion architecture on GCS and
 > BigQuery, and surfaces pollution trends via a Looker Studio dashboard.
 
-![CI](https://github.com/luc-dt/hcm-air-quality-pipeline/actions/workflows/dbt_ci.yml/badge.svg)
 
 ---
 
@@ -44,7 +43,7 @@ Zenodo CSV      ──► Kestra ──► GCS bronze/historical/
 
 > Infrastructure (GCS bucket + BigQuery dataset) is provisioned by Terraform.
 > Kestra runs locally via Docker Compose.
-> PySpark runs locally; development done in Jupyter notebooks under `notebooks/`.
+> PySpark scripts live in `spark/`; exploratory notebooks are archived in `notebooks/exploration/`.
 
 ---
 
@@ -98,14 +97,15 @@ hcm-air-quality-pipeline/
 ├── kestra/
 │   ├── docker-compose.yml
 │   ├── spark.Dockerfile
-│   ├── transform_hourly.py
 │   ├── setup_kv.sh
 │   └── flows/
 │       ├── hourly_air_quality_ingest.yml
 │       └── historical_backfill.yml
-├── notebooks/              # PySpark development (Jupyter)
-│   ├── transform_historical.ipynb
-│   └── transform_hourly.ipynb
+├── spark/                  # PySpark processing scripts
+│   ├── transform_historical.py
+│   └── transform_hourly.py
+├── notebooks/
+│   └── exploration/        # Development notebooks (archived)
 ├── dbt/                    # Transformation models
 │   └── hcm_air_quality/
 │       ├── models/
@@ -227,10 +227,10 @@ In the Kestra UI, execute:
 export GOOGLE_APPLICATION_CREDENTIALS=keys/hcm-pipeline-sa.json
 
 # Historical (one-time)
-jupyter notebook notebooks/transform_historical.ipynb
+spark-submit spark/transform_historical.py
 
 # Hourly (run for a specific date/hour you have in bronze)
-jupyter notebook notebooks/transform_hourly.ipynb
+DATE=2024-01-15 HOUR=12 spark-submit spark/transform_hourly.py
 ```
 
 ### Step 8 — Create BigQuery external tables
