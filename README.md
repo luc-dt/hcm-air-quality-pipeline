@@ -235,25 +235,7 @@ DATE=2024-01-15 HOUR=12 spark-submit spark/transform_hourly.py
 
 ### Step 8 — Create BigQuery external tables
 
-In BigQuery Query Editor, create two external tables pointing at GCS silver layer:
-
-```sql
--- Hourly external table (Hive-partitioned by date)
-CREATE OR REPLACE EXTERNAL TABLE `de-zoomcamp-2026-486008.hcm_air_quality.raw_hourly`
-WITH PARTITION COLUMNS (date DATE)
-OPTIONS (
-  format = 'PARQUET',
-  uris = ['gs://hcm-air-quality-486008/silver/hourly/*'],
-  hive_partition_uri_prefix = 'gs://hcm-air-quality-486008/silver/hourly/'
-);
-
--- Historical external table
-CREATE OR REPLACE EXTERNAL TABLE `de-zoomcamp-2026-486008.hcm_air_quality.raw_historical`
-OPTIONS (
-  format = 'PARQUET',
-  uris = ['gs://hcm-air-quality-486008/silver/historical/*.parquet']
-);
-```
+External tables are provisioned by Terraform in Step 2 — no manual SQL required.
 
 ### Step 9 — Run dbt
 

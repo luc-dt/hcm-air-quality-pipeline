@@ -40,3 +40,36 @@ resource "google_bigquery_dataset" "dataset" {
   dataset_id = var.bq_dataset_name
   location   = var.location
 }
+
+# External table — silver/hourly (Hive-partitioned by date)
+resource "google_bigquery_table" "raw_hourly" {
+  dataset_id          = google_bigquery_dataset.dataset.dataset_id
+  table_id            = "raw_hourly"
+  deletion_protection = false
+
+  external_data_configuration {
+    autodetect    = true
+    source_format = "PARQUET"
+    source_uris   = ["gs://${var.gcs_bucket_name}/silver/hourly/*"]
+
+    hive_partitioning_options {
+      mode                     = "AUTO"
+      source_uri_prefix        = "gs://${var.gcs_bucket_name}/silver/hourly/"
+      require_partition_filter = false
+    }
+  }
+}
+
+
+# External table — silver/historical
+resource "google_bigquery_table" "raw_historical" {
+  dataset_id          = google_bigquery_dataset.dataset.dataset_id
+  table_id            = "raw_historical"
+  deletion_protection = false
+
+  external_data_configuration {
+    autodetect    = true
+    source_format = "PARQUET"
+    source_uris   = ["gs://${var.gcs_bucket_name}/silver/historical/*.parquet"]
+  }
+}
