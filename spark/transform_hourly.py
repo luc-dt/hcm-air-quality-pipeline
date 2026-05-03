@@ -5,11 +5,12 @@ from pyspark.sql import functions as F
 BUCKET = "hcm-air-quality-486008"
 DATE = os.environ["DATE"]
 HOUR = os.environ["HOUR"]
-SA_KEY = "/tmp/sa_key.json"
+SA_KEY = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "keys/hcm-pipeline-sa.json")
+
 
 spark = SparkSession.builder \
     .appName("hcm-hourly-silver") \
-    .config("spark.driver.extraClassPath", "/app/gcs-connector.jar") \
+    .config("spark.driver.extraClassPath", "jars/gcs-connector.jar") \
     .config("spark.hadoop.google.cloud.auth.service.account.enable", "true") \
     .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", SA_KEY) \
     .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem") \
