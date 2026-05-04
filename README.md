@@ -116,6 +116,7 @@ hcm-air-quality-pipeline/
 │       └── tests/          # Custom data quality tests
 ├── data/                   # Local raw data (gitignored)
 ├── keys/                   # GCP service account key (gitignored)
+├── Makefile                # Automation commands for terraform, kestra, dbt
 └── README.md
 ```
 
@@ -299,7 +300,7 @@ hcm_air_quality:
       project: de-zoomcamp-2026-486008
       dataset: hcm_air_quality
       location: asia-southeast1
-      keyfile: keys/hcm-pipeline-sa.json
+      keyfile: ../../keys/hcm-pipeline-sa.json
       threads: 4
       timeout_seconds: 300
 ```
@@ -308,10 +309,13 @@ Then run:
 
 ```bash
 cd dbt/hcm_air_quality
-dbt debug        # verify connection before running models
-dbt run
-dbt test
+dbt debug --profiles-dir ~/.dbt   # verify connection before running models
+dbt run   --profiles-dir ~/.dbt
+dbt test  --profiles-dir ~/.dbt
 ```
+
+> **Note (Windows / Git Bash):** dbt may not resolve `~` automatically.
+> Pass `--profiles-dir ~/.dbt` explicitly, or use `make dbt-build` from the project root.
 
 ### Step 10 — View dashboard
 
@@ -327,6 +331,6 @@ _7-day rolling AQI average shows consistent Moderate–Unhealthy levels across 2
 
 _PM2.5 and PM10 concentrations consistently exceed WHO annual safe thresholds (15 µg/m³ and 45 µg/m³ respectively)._
 
-> **Note:**The Zenodo dataset is a fixed snapshot ending February 18, 2026; live hourly collection began April 8, 2026, leaving March without data.
+> **Note:** The Zenodo dataset is a fixed snapshot ending February 18, 2026; live hourly collection began April 8, 2026, leaving March without data.
 
 ---
