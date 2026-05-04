@@ -155,6 +155,52 @@ plus custom range checks (`assert_aqi_range`, `assert_pollutants_non_negative`).
 
 ---
 
+## Design Decisions
+
+**`spark/` and `kestra/` are kept strictly separate.**
+`kestra/` contains only orchestration flows. PySpark processing scripts live in
+`spark/` and are invoked by Kestra at runtime. Mixing processing logic into
+orchestration flows makes both harder to test and maintain.
+
+**GCS connector JAR is bundled locally, not fetched from Maven.**
+Using `spark.jars.packages` downloads the connector from Maven Central at job
+startup (~40MB, ~60s). The JAR is pre-downloaded to `jars/` and loaded via
+`spark.driver.extraClassPath`, making job startup deterministic and offline-capable.
+
+**BigQuery external tables instead of native tables.**
+Silver data stays in GCS (source of truth). External tables give BigQuery query
+access without duplicating storage or running a load job. Appropriate for this
+data volume and access pattern.
+
+**PySpark scripts fail fast before writing to silver.**
+Both transform scripts validate row count and null AQI values before any write.
+An empty or fully-null dataset raises an exception and skips the silver write,
+preventing silent data quality failures downstream.
+
+**Hourly silver is Hive-partitioned by date.**
+Output path `silver/hourly/date=YYYY-MM-DD/` enables partition pruning on
+date-range queries in BigQuery without a full scan.
+
+## Data Quality
+
+**dbt tests (8 schema tests + 2 custom tests = 10 total):**
+
+| Layer   | Model             | Column        | Test                                                     |
+|---------|-------------------|---------------|----------------------------------------------------------|
+| Staging | `stg_hourly`      | `observed_at` | `not_null`                                               |
+| Staging | `stg_historical`  | `observed_at` | `not_null`                                               |
+| Mart    | `mart_daily_aqi`  | `observed_at` | `not_null`, `unique`                                     |
+| Mart    | `mart_daily_aqi`  | `us_aqi`      | `not_null`                                               |
+| Mart    | `mart_daily_aqi`  | `aqi_category`| `accepted_values` (Good → Hazardous)                     |
+| Mart    | `mart_pollutants` | `observed_at` | `not_null`, `unique`                                     |
+| Custom  | `mart_daily_aqi`  | `us_aqi`      | `assert_aqi_range` — rejects values outside 0–500        |
+| Custom  | `mart_pollutants` | all pollutants| `assert_pollutants_non_negative` — rejects negative µg/m³|
+
+**PySpark validation (pre-silver write):**
+Both transform scripts raise an exception and abort the silver write if:
+- row count is zero, or
+- all `us_aqi` values are null
+
 ## How to Reproduce
 
 ### Prerequisites
