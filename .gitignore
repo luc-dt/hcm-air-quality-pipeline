@@ -27,3 +27,6 @@ dbt/hcm_air_quality/target/
 dbt/hcm_air_quality/dbt_packages/
 *.pyc
 __pycache__/
+
+
+jars/
