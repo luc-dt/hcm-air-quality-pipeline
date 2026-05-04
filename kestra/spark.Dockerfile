@@ -12,5 +12,7 @@ RUN pip install --no-cache-dir pyspark==3.5.3
 RUN mkdir -p /app && curl -L -o /app/gcs-connector.jar \
     https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar
 
-# Bake the transform script into the image
-COPY transform_hourly.py /app/transform_hourly.py
+WORKDIR /app
+
+# Bake the transform script into the image, preserving the folder structure
+COPY spark/transform_hourly.py /app/spark/transform_hourly.py

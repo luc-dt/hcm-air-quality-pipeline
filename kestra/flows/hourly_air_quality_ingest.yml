@@ -72,6 +72,8 @@ tasks:
       initialDelay: PT1M
       maxDelay: PT5M
     containerImage: hcm-pyspark:3.5
+    namespaceFiles:
+      enabled: true
     env:
       DATE: "{{execution.startDate | date('yyyy-MM-dd')}}"
       HOUR: "{{execution.startDate | date('HH')}}"
@@ -80,7 +82,7 @@ tasks:
       #!/bin/bash
       set -e
       printf '%s' "$GCP_CREDS" > /tmp/sa_key.json
-      spark-submit --jars /app/gcs-connector.jar /app/transform_hourly.py
+      spark-submit --jars /app/gcs-connector.jar spark/transform_hourly.py
 
 triggers:
   # Schedule indicating the flow will run automatically at the start of every hour.

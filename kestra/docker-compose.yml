@@ -12,8 +12,8 @@ services:
   # ─────────────────────────────────────────────────────────────────────────────
   hcm-pyspark:
     build:
-      context: .                        # build context is kestra/ directory
-      dockerfile: spark.Dockerfile      # uses kestra/spark.Dockerfile
+      context: ..                       # build context is now project root
+      dockerfile: kestra/spark.Dockerfile # path to Dockerfile relative to context
     image: hcm-pyspark:3.5              # tags the built image for Kestra to pull
     command: ["echo", "hcm-pyspark image ready"]  # exits cleanly after build
   # ─────────────────────────────────────────────────────────────────────────────

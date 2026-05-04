@@ -1,5 +1,7 @@
 # HCM Air Quality Analytics Pipeline
 
+[![dbt CI](https://github.com/luc-dt/hcm-air-quality-pipeline/actions/workflows/dbt_ci.yml/badge.svg)](https://github.com/luc-dt/hcm-air-quality-pipeline/actions/workflows/dbt_ci.yml)
+
 > An end-to-end batch data pipeline that ingests four years of air quality data
 > for Ho Chi Minh City, transforms it through a medallion architecture on GCS and
 > BigQuery, and surfaces pollution trends via a Looker Studio dashboard.
