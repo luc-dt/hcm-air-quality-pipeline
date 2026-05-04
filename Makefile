@@ -38,7 +38,7 @@ dbt-deps:
 	cd dbt/hcm_air_quality && dbt deps
 
 dbt-build:
-	cd dbt/hcm_air_quality && dbt build
+	cd dbt/hcm_air_quality && dbt build --profiles-dir ~/.dbt
 
 # Run everything (Example)
 pipeline: tf-apply kestra-up spark-historical dbt-build
