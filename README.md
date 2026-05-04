@@ -327,8 +327,6 @@ _7-day rolling AQI average shows consistent Moderate–Unhealthy levels across 2
 
 _PM2.5 and PM10 concentrations consistently exceed WHO annual safe thresholds (15 µg/m³ and 45 µg/m³ respectively)._
 
-> **Note:** Data gap exists for March 2026 — the historical dataset ends Feb 18, 2026
-> and live hourly collection began April 8, 2026. The pipeline is operational;
-> the gap reflects the project start date, not a pipeline failure.
+> **Note:**The Zenodo dataset is a fixed snapshot ending February 18, 2026; live hourly collection began April 8, 2026, leaving March without data.
 
 ---
