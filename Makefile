@@ -8,7 +8,7 @@
 setup:
 	@echo "Setting up Python environment..."
 	python -m venv .venv
-	@echo "Please activate your environment: source .venv/Scripts/activate (Linux/Mac) or .venv\Scripts\activate (Windows)"
+	@echo "Please activate your environment: source .venv/bin/activate (Linux/Mac) or .venv\Scripts\activate (Windows)"
 
 # 2. Step 1: Infrastructure (Terraform)
 tf-init:
